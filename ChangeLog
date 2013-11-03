@@ -1,0 +1,5 @@
+2013-10-30	guoqing kong <haoyun-kgq@163.com>
+			* 发布 loganalysis.py-v1.0
+			* 完成基本统计分析功能。
+			* 支持Ningx的默认日志格式，即combined，默认为此格式
+			* 支持Apache的默认日志格式，即combined
