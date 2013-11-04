@@ -36,90 +36,102 @@ import re
 
 # 字典相加
 def dictPlus(d1,d2):
-	for k,v in d2.items():
-		if d1.has_key(k):
-			d1[k]+=d2[k]
-		else:
-			d1[k]=d2[k]
+	for k,v in d2.iteritems():
+		try:
+			d1[k] += d2[k]
+		except:
+			d1[k] = d2[k]
 	return d1
+
+def filterKey(Dict,k1,k2):
+	list = []
+	for k,v in Dict.iteritems():
+		try:
+			test = v[k1][k2]
+			list.append((k,v))
+		except:
+			pass
+	return list
 
 # 日志分析
 def analysis(logFile = None, logFileFormat = 'nginx_default'):
-	pattern = logFormat[logFileFormat]
+	pattern = re.compile(logFormat[logFileFormat])
 	IPData = {}
 	
 	f = open(logFile,'r')
 	for i,line in enumerate(f):
-		matchs = re.match(pattern, line.strip())
-		if matchs == None:
+		matchs = pattern.match(line)
+		if matchs is None:
 			print 'not matchd line: %s' % i
 			continue
 		else:
 			_ip, _user, _time, _method, _uri, _proto, _code, _size, _ref, _ua = matchs.groups()
 			# begin fill IPData
-			if _ua.strip()=='' or _ua.strip()=='-':
+			if _ua in ('-',''):
 				ua_yes_no = 'no'
 			else:
 				ua_yes_no = 'yes'
-			if _ref.strip()=='' or _ref.strip()=='-':
+			if _ref in ('-',''):
 				ref_yes_no = 'no'
 			else:
 				ref_yes_no = 'yes'
-			if IPData.has_key(_ip):
-				IPData[_ip]['count'] += 1
-				IPData[_ip]['size'] += int(_size)
-				if IPData[_ip]['method'].has_key(_method):
-					IPData[_ip]['method'][_method] += 1
-				else:
-					IPData[_ip]['method'][_method] = 1
-				if IPData[_ip]['proto'].has_key(_proto):
-					IPData[_ip]['proto'][_proto] += 1
-				else:
-					IPData[_ip]['proto'][_proto] = 1
-				if IPData[_ip]['code'].has_key(_code):
-					IPData[_ip]['code'][_code] += 1
-				else:
-					IPData[_ip]['code'][_code] = 1
-			else:
-				IPData.setdefault(_ip,{
-					'count':1,
-					'size':int(_size),
-					'method':{_method:1},
-					'proto':{_proto:1},
-					'code':{_code:1},
-					'ref':{'yes':0,'no':0},
-					'ua':{'yes':0,'no':0}
-				})
+			try:
+				test = IPData[_ip]
+			except:
+				# initialize
+				IPData[_ip] = {
+						'count':0,
+						'size':0,
+						'method':{},
+						'proto':{},
+						'code':{},
+						'ref':{'yes':0,'no':0},
+						'ua':{'yes':0,'no':0}
+				}
+			IPData[_ip]['count'] += 1
+			IPData[_ip]['size'] += int(_size)
+			try:
+				IPData[_ip]['method'][_method] += 1
+			except:
+				IPData[_ip]['method'][_method] = 1
+			try:
+				IPData[_ip]['proto'][_proto] += 1
+			except:
+				IPData[_ip]['proto'][_proto] = 1
+			try:
+				IPData[_ip]['code'][_code] += 1
+			except:
+				IPData[_ip]['code'][_code] = 1
 			IPData[_ip]['ref'][ref_yes_no] += 1
 			IPData[_ip]['ua'][ua_yes_no] += 1
 			# end fill IPData
 
 	f.close()
 	
-	TotalItem_IP = len(IPData.keys())
+	TotalItem_IP = len(IPData)
 	
-	TotalItem_IPCountRank = sorted(IPData.items(),key=lambda i:i[1]['count'],reverse=True)[:10]
+	TotalItem_IPCountRank = sorted(IPData.iteritems(),key=lambda i:i[1]['count'],reverse=True)[:10]
 	
-	TotalItem_IPTrafficRank = sorted(IPData.items(),key=lambda i:i[1]['size'],reverse=True)[:10]
+	TotalItem_IPTrafficRank = sorted(IPData.iteritems(),key=lambda i:i[1]['size'],reverse=True)[:10]
 	
-	temp = [i for i in IPData.iteritems() if i[1]['code'].has_key('502')]
+	temp = filterKey(IPData,'code','502')
 	TotalItem_IPCode502Rank = sorted(temp,key=lambda i:i[1]['code']['502'],reverse=True)[:10]
 	
-	temp = [i for i in IPData.iteritems() if i[1]['code'].has_key('503')]
+	temp = filterKey(IPData,'code','503')
 	TotalItem_IPCode503Rank = sorted(temp,key=lambda i:i[1]['code']['503'],reverse=True)[:10]
 	
-	temp = [i for i in IPData.iteritems() if i[1]['code'].has_key('504')]
+	temp = filterKey(IPData,'code','504')
 	TotalItem_IPCode504Rank = sorted(temp,key=lambda i:i[1]['code']['504'],reverse=True)[:10]
 	
 	TotalItem_IPNoUserAgentRank = sorted(IPData.iteritems(),key=lambda i:i[1]['ua']['no'],reverse=True)[:10]
 	
 	TotalItem_IPNoRefererRank = sorted(IPData.iteritems(),key=lambda i:i[1]['ref']['no'],reverse=True)[:10]
 	
-	TotalItem_CodeCountAndPercent = reduce(dictPlus,[i['code'] for i in IPData.values()])
+	TotalItem_CodeCountAndPercent = reduce(dictPlus,[i['code'] for i in IPData.itervalues()])
 	
-	TotalItem_HTTPVersionAndPercent = reduce(dictPlus,[i['proto'] for i in IPData.values()])
+	TotalItem_HTTPVersionAndPercent = reduce(dictPlus,[i['proto'] for i in IPData.itervalues()])
 	
-	TotalItem_ReqMethodAndPercent = reduce(dictPlus,[i['method'] for i in IPData.values()])
+	TotalItem_ReqMethodAndPercent = reduce(dictPlus,[i['method'] for i in IPData.itervalues()])
 	
 	# output to screen
 	print '/------------------------------------------------------------'
@@ -206,13 +218,13 @@ def analysis(logFile = None, logFileFormat = 'nginx_default'):
 		print '| ',k,(12-len(k))*' ',v
 	print '\------------------------------------------------------------'
 	print
-
+	
 if __name__ == '__main__':
 	#nginx default is combined:'$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
 	#apache default is combined:"%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\""
 	logFormat = {
-		'nginx_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) - (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>.+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>\d+) "(?P<ref>[^"]*)" "(?P<ua>[^"]*)"',
-		'apache_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) [^ ]+ (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>[^ ]+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>-|\d+) "(?P<ref>[^"]+)" "(?P<ua>[^"]+)"'
+		'nginx_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) - (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>.+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>\d+) "(?P<ref>[^"]*)" "(?P<ua>[^"]*)"\n',
+		'apache_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) [^ ]+ (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>[^ ]+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>-|\d+) "(?P<ref>[^"]+)" "(?P<ua>[^"]+)"\n'
 	}
 	logFile = ''
 	logFileFormat = 'nginx_default'

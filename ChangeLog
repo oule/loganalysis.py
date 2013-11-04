@@ -1,3 +1,10 @@
+2013-11-01	guoqing kong <haoyun-kgq@163.com>
+			* 发布 loganalysis.py-v1.1
+			* 优化正则表达式，采用了预编译，取消了每次循环的strip()
+			* 优化条件判断语句，采用 is
+			* 优化循环，采用迭代器
+			* 优化字典key查询，使用try代替has_key，同时采用了filterKey
+
 2013-10-30	guoqing kong <haoyun-kgq@163.com>
 			* 发布 loganalysis.py-v1.0
 			* 完成基本统计分析功能。

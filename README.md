@@ -6,7 +6,7 @@ loganalysis.py 是一个通过python语言实现的WEB服务器访问日志统�
 Version
 =======
 
-2013-10-30 发布 loganalysis.py version 1.0 (v1.0)。
+2013-11-1 发布 loganalysis.py version 1.1 (v1.1)。
 
 Description
 ===========
