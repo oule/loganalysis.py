@@ -2,6 +2,7 @@
 #encoding:utf8
 
 '''
+
 本程序用于统计和分析WEB服务器访问日志，基于python实现。预实现以下功能：
 
 1、 统计独立IP数量											[已完成]
@@ -30,17 +31,22 @@
 23、统计URL各请求方法数量									[未完成]
 
 '''
-
 import sys
+import os
 import re
+import cPickle
+import multiprocessing
 
-# 字典相加
 def dictPlus(d1,d2):
 	for k,v in d2.iteritems():
 		try:
-			d1[k] += d2[k]
+			test = d1[k]
+			if type(v) == type({}):
+				d1[k] = dictPlus(d1[k],v)
+			else:
+				d1[k] += v
 		except:
-			d1[k] = d2[k]
+			d1[k] = v
 	return d1
 
 def filterKey(Dict,k1,k2):
@@ -53,13 +59,18 @@ def filterKey(Dict,k1,k2):
 			pass
 	return list
 
-# 日志分析
-def analysis(logFile = None, logFileFormat = 'nginx_default'):
-	pattern = re.compile(logFormat[logFileFormat])
+def worker(index,linesPerProcess,cpus,logFile,pattern,sm):
 	IPData = {}
+	begin = index * linesPerProcess
+	if index + 1 == cpus:
+		end = (cpus + 1) * linesPerProcess
+	else:
+		end = (index + 1) * linesPerProcess
 	
-	f = open(logFile,'r')
-	for i,line in enumerate(f):
+	for i,line in enumerate(open(logFile,'r')):
+		if i < begin:continue
+		if i >= end:break
+		# 耗时
 		matchs = pattern.match(line)
 		if matchs is None:
 			print 'not matchd line: %s' % i
@@ -105,8 +116,28 @@ def analysis(logFile = None, logFileFormat = 'nginx_default'):
 			IPData[_ip]['ref'][ref_yes_no] += 1
 			IPData[_ip]['ua'][ua_yes_no] += 1
 			# end fill IPData
+	sm.value = cPickle.dumps(IPData)
 
-	f.close()
+def analysis(logFile = None, logFileFormat = 'nginx_default'):
+	pattern = re.compile(logFormat[logFileFormat])
+	processList = []
+	sharedMems = []
+	logFileSize = os.path.getsize(logFile)
+	cpus = multiprocessing.cpu_count()
+	for i,line in enumerate(open(logFile)):pass
+	fileLines = i+1
+	linesPerProcess = fileLines / cpus
+	for i in range(cpus):
+		sm = multiprocessing.Array('c',logFileSize/10/cpus)
+		p = multiprocessing.Process(target=worker,args=(i,linesPerProcess,cpus,logFile,pattern,sm))
+		processList.append(p)
+		sharedMems.append(sm)
+		p.start()
+
+	for i in processList:
+		i.join()
+
+	IPData = reduce(dictPlus,[cPickle.loads(i.value) for i in sharedMems])
 	
 	TotalItem_IP = len(IPData)
 	
@@ -132,6 +163,7 @@ def analysis(logFile = None, logFileFormat = 'nginx_default'):
 	TotalItem_HTTPVersionAndPercent = reduce(dictPlus,[i['proto'] for i in IPData.itervalues()])
 	
 	TotalItem_ReqMethodAndPercent = reduce(dictPlus,[i['method'] for i in IPData.itervalues()])
+
 	
 	# output to screen
 	print '/------------------------------------------------------------'
@@ -224,7 +256,7 @@ if __name__ == '__main__':
 	#apache default is combined:"%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\""
 	logFormat = {
 		'nginx_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) - (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>.+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>\d+) "(?P<ref>[^"]*)" "(?P<ua>[^"]*)"\n',
-		'apache_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) [^ ]+ (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>[^ ]+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>-|\d+) "(?P<ref>[^"]+)" "(?P<ua>[^"]+)"\n'
+		'apache_default':r'(?P<ip>\d+\.\d+\.\d+\.\d+) [^ ]+ (?P<user>[^ ]+) [^:]+:(?P<time>[^ ]+) [^ ]+ "(?P<method>[^ ]+) (?P<uri>[^ ]+) (?P<proto>HTTP/\d\.\d)" (?P<code>\d+) (?P<size>-|\d+) "(?P<ref>[^"]+)" "(?P<ua>[^"]+)"'
 	}
 	logFile = ''
 	logFileFormat = 'nginx_default'

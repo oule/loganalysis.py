@@ -1,3 +1,8 @@
+2013-11-09	guoqing kong <haoyun-kgq@163.com>
+			* 发布 loganalysis.py-v2.0
+			* 程序架构有了重大改变，采用多进程模型，multiprocessing
+			* 采用共享内存做进程间数据共享，性能提升接近一倍
+
 2013-11-01	guoqing kong <haoyun-kgq@163.com>
 			* 发布 loganalysis.py-v1.1
 			* 优化正则表达式，采用了预编译，取消了每次循环的strip()
